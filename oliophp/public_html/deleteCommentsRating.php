@@ -25,19 +25,24 @@
 
 session_start();
 require_once("../etc/config.php");
-$connection = DBConnection::getWriteInstance();
+require_once('../etc/phpcassa_config.php');
+
 $events = Events_Controller::getInstance();
 $dateFormat = "l,  F j,  Y,  h:i A";
 $commentid = $_REQUEST['commentid'];
 $se= $_REQUEST['socialEventID'];
-$deleteCommentsRating = "delete from COMMENTS_RATING where commentid='$commentid'";
-$connection->beginTransaction();
-$connection->exec($deleteCommentsRating);
 
-$commentsratingSql = "select commentid,username,comments,ratings,created_at,updated_at from COMMENTS_RATING where socialeventid ='$se'";
-$commentsratingResult=$connection->query($commentsratingSql);
+$cf = new ColumnFamily($conn,'COMMENTS_RATING');
+$cf->remove($commentid);
+
+$commentsrating = new ColumnFamily($conn,'COMMENTS_RATING');
+$index_exp = CassandraUtil::create_index_expression('socialeventid', $se);
+$index_clause = CassandraUtil::create_index_clause(array($index_exp));
+$commentsratingResult = $commentsrating->get_indexed_slices($index_clause);
+
 ob_start();
-while($row1 = $commentsratingResult->getArray()) {
+
+foreach($commentsratingResult as $key => $row1) {
 $tmp_commentid = $row1['commentid'];
 $tmp_uname = $row1['username'];
 $tmp_uname_comments = $row1['comments'];
@@ -46,8 +51,8 @@ $tmp_uname_created_at = trim($events->formatdatetime($dateFormat,$row1['created_
 $tmp_uname_updated_at = trim($events->formatdatetime($dateFormat,$row1['updated_at']));
 require("../views/commentsRating.php");
 }
+
 unset($commentsratingResult);
-$connection->commit();
 $eventCommentsRating = ob_get_contents();
 ob_end_clean();    
 

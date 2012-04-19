@@ -18,7 +18,7 @@
  */ 
         
 require_once("../etc/config.php");
-$connection = DBConnection::getWriteInstance();
+require_once('../etc/phpcassa_config.php');
 
 // 1. Get data from submission page.
 $username=$_POST['add_user_name'];
@@ -44,77 +44,54 @@ $geocode = new Geocoder($street1, $city, $state, $zip);
 
 // 3. Insert address and get the address id, or update the address.
 if(isset($_POST['addpersonsubmit'])) {
+	$insertaddr = new ColumnFamily($conn,'ADDRESS');
+	$addrid = exec("python /usr/pysnowflakeclient/pysnowflakeclient/__init__.py");
+	$insertaddr->insert($addrid,array('addressid' => $addrid,'street1' => $strt1,'street2' => $street2, 'city' => $cty,'state' => $state,'zip' => $zip, 'country' => $country,'latitude' => $geocode->latitude,'longitude' => $geocode->longitude));
 
-	$insertaddr = "insert into ADDRESS (street1, street2, city, state, zip, country, latitude, longitude) ".
-                      "values ('$strt1', '$street2', '$cty', '$state', '$zip', '$country', ".
-                      "'$geocode->latitude', '$geocode->longitude')";
+   // At least temporary place holder for the image.
+   $modified_image_name = Olio::$config['includes'] . "userphotomissing.gif";
+   $imagethumb = Olio::$config['includes'] . "userphotomissing.gif";
 
-    $connection->beginTransaction();
-	$connection->exec($insertaddr);
-	$cq = "select last_insert_id()";
-	$idres = $connection->query($cq);
-	while($idres->next()) {
-            $addrid = $idres->get(1);
-	}
-	unset($idres);
+	$insertsql = new ColumnFamily($conn,'PERSON');
+	$userid = exec("python /usr/pysnowflakeclient/pysnowflakeclient/__init__.py");
+	$insertsql->insert($userid,array('userid' => $userid,'username' => $username ,'password' => $pwd,'firstname' => $fname,'lastname' => $lname,'email' => $email,'telephone' => $telephone, 'imageurl' => $modified_image_name,'imagethumburl' => $imagethumb,'summary' => $summary,'timezone' => $timezone,'ADDRESS_addressid' => $addrid));
 
-    // At least temporary place holder for the image.
-    $modified_image_name = Olio::$config['includes'] . "userphotomissing.gif";
-    $imagethumb = Olio::$config['includes'] . "userphotomissing.gif";
-
-    $insertsql = "insert into PERSON (username, password, firstname, lastname,".
-                 " email, telephone, imageurl, imagethumburl, summary,".
-                 " timezone,"."ADDRESS_addressid) values('$username', '$pwd',".
-                 " '$fname', '$lname', '$email', '$telephone',".
-                 " '$modified_image_name', '$imagethumb', '$summary',".
-                 " '$timezone', '$addrid')";
-	$insertresult = $connection->exec($insertsql);
-    $idres = $connection->query($cq);
-    while ($idres->next()) {
-        $userid = $idres->get(1);
-    }
-
-} else if (isset($_POST['addpersonsubmitupdate'])) {
+}
+else if (isset($_POST['addpersonsubmitupdate'])) {
 
  	if ($summary == "" ) {
-		$sumquery = "select summary from PERSON where username='$username' ";
-		$sumresult = $connection->query($sumquery);
-		while ($sumresult->next()) {
-			$summary = $sumresult->get(1);
+		$sumquery = new ColumnFamily($conn,'PERSON');
+		$index_exp = CassandraUtil::create_index_expression('username', $uname);
+		$index_clause = CassandraUtil::create_index_clause(array($index_exp));
+		$sumresult = $sumquery->get_indexed_slices($index_clause);
+
+		foreach ($sumresult as $key => $column) {
+			$summary = $column['summary'];
 		}
 		unset($sumresult);
 	}
-
-	$insertaddr = "insert into ADDRESS (street1, street2, city, state, zip, country, latitude, longitude) ".
-                      "values ('$strt1', '$street2', '$cty', '$state', '$zip', '$country', ".
-                      "'$geocode->latitude', '$geocode->longitude')";
-	$connection->exec($insertaddr);
-	$cq = "select last_insert_id()";
-	$idres = $connection->query($cq);
-	while($idres->next()) {
-            $addrid = $idres->get(1);
-	}
+	$insertaddr = new ColumnFamily($conn,'ADDRESS');
+	$addrid = exec("python /usr/pysnowflakeclient/pysnowflakeclient/__init__.py");
+	$insertaddr->insert($addrid,array('addressid' => $addrid,'street1' => $strt1,'street2' => $street2,'city' => $cty,'state' => $state,'zip' => $zip,'country' => $country,'latitude' => $geocode->latitude,'longitude' => $geocode->longitude));
 	unset($idres);
+	$cf = new ColumnFamily($conn,'PERSON');
+	$index_exp = CassandraUtil::create_index_expression('username',$username);
+	$index_clause = CassandraUtil::create_index_clause(array($index_exp));
+   $rows = $cf->get_indexed_slices($index_clause);
+	
+	foreach($rows as $key => $row) {
+		$userid  = $row['userid'];
+		$cf->insert($row['userid'],array('password' => $pwd,'firstname' => $fname,'lastname' => $lname,'email' => $email,'telephone' => $telephone,'timezone' => $timezone,'ADDRESS_addressid' => $addrid));
+		if ($summary != "") {
+			$cf->insert($row['userid'],array('summary' => $summary));
+		}
+	}
 
-	$updatesql ="update PERSON set password='$pwd', firstname='$fname', lastname='$lname', email='$email', telephone='$telephone',";
-    if ($summary != "") {
-        $updatesql .= " summary='$summary',";
-    }
-    $updatesql .= " timezone='$timezone', ADDRESS_addressid='$addrid' where username='$username' ";
-	$connection->exec($updatesql);
-
-    $userid_query = "select userid from PERSON where username='$username'";
-    $idres = $connection->query($userid_query);
-    while ($idres->next()) {
-        $userid = $idres.get(1);
-    }
-    unset($idres);
 }
 
-// 4. End the DB transaction here.
-$connection->commit();
 
 if ($image_name != "") {
+
     // 5. Determine the image id.
     $pos=strpos($image_name,'.');
     $img_ext = substr($image_name,$pos,strlen($image_name));
@@ -141,13 +118,11 @@ if ($image_name != "") {
     }
     unlink($user_image_location);
     unlink($thumb_location);
-
     // 8. Update the DB.
-    $updateimage = "update PERSON set imageurl = '$modified_image_name', ".
-                   "imagethumburl = '$imagethumb' ".
-                   "where userid = '$userid'";
-    $updated = $connection->exec($updateimage);
+	$cf = new ColumnFamily($conn,'PERSON');
+	$cf->insert($userid,array('imageurl' => $modified_image_name,'imagethumburl' => $imagethumb));
 }
 
 header("Location:users.php?username=".$username);
+
 ?>

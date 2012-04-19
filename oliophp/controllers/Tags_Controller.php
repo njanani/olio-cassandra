@@ -24,17 +24,23 @@
  * This is Tags Controller. This computes the tagcloud
  * that needs to be displayed on the homepage.
  */
+
 class Tags_Controller {
     function getHomePageTagCloud($connection) {
-        //$cloudquery = "(SELECT st.tag as tag,st.refcount as count from SOCIALEVENTTAG as st where st.refcount>100 limit 50)  order by tag ASC";
-        $cloudquery = "(SELECT st.tag as tag,st.refcount as count from SOCIALEVENTTAG as st order by st.refcount desc limit 50) order by tag asc";
-        $cloudresult =$connection->query($cloudquery);
+//        $cloudquery = "(SELECT st.tag as tag,st.refcount as count from SOCIALEVENTTAG as st where st.refcount>100 limit 50)  order by tag ASC";
+ //      $cloudquery = "(SELECT st.tag as tag,st.refcount as count from SOCIALEVENTTAG as st order by st.refcount desc limit 50) order by tag asc";
+ //       $cloudresult =$connection->query($cloudquery);
+
+	$cloudquery = new ColumnFamily($connection,'SOCIALEVENTTAG');
+	$cloudresult = $cloudquery->get_range($key_start="1",$key_finish="50");
         $rowsFound = false;
-        while ($row = $cloudresult->getArray()) {
+
+	foreach($cloudresult as $key1=>$row){
             $rowsFound = true;
-            $tags[$row['tag']] = $row['count'];
+            $tags[$row['tag']] = $row['refcount'];
         }
-        unset($cloudresult);
+      
+	 unset($cloudresult);
         if ($rowsFound) {
             // change these font sizes if you will
             $max_size = 250; // max font size in %
@@ -67,19 +73,24 @@ class Tags_Controller {
     }
     
     function getEventsPageTagCloud($connection,$se) {
-        $cloudquery = "select  tag, refcount as count ".
-                              "from SOCIALEVENTTAG a, ".
-                              "SOCIALEVENTTAG_SOCIALEVENT b ".
-                              "where a.socialeventtagid = b.socialeventtagid ".
-                              "and b.socialeventid = '$se' ".
-                              "and a.refcount > 0 ".
-                              "order by tag ASC";
-
-        $cloudresult = $connection->query($cloudquery);
-        while ($row = $cloudresult->getArray())	{
-            $rowsFound = true;
-            $tags[$row['tag']] = $row['count'];
-        }
+	$rowsFound = false;
+   $sql = new ColumnFamily($connection,'SOCIALEVENTTAG_SOCIALEVENT');
+   $cloudquery = new ColumnFamily($connection,'SOCIALEVENTTAG');
+   $index_exp = CassandraUtil::create_index_expression('socialeventid',$se );
+   $index_clause = CassandraUtil::create_index_clause(array($index_exp));
+   $result =  $sql->get_indexed_slices($index_clause);
+   if(!empty($result)) {
+      foreach($result as $key => $value){
+      	if($value['socialeventtagid'] != NULL) {
+		   	$cloudresult = $cloudquery->get($value['socialeventtagid']);
+				
+				if($cloudresult['refcount'] > 0) {
+						$rowsFound = true;
+						$tags[$cloudresult['tag']] = $cloudresult['refcount'];
+				}
+			}
+      }
+   }
         unset($cloudresult);
 
         if ($rowsFound) {

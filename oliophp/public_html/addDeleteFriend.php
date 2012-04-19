@@ -24,21 +24,36 @@
     
 session_start();
 require_once("../etc/config.php");
-$connection = DBConnection::getWriteInstance();
+require_once('../etc/phpcassa_config.php');
 $friends = Users_Controller::getInstance();
 $person = $_REQUEST['person'];
 $friend = $_REQUEST['friend'];
 $frnd = $_REQUEST['frnd'];
 $user = $_REQUEST['query'];
 $flag = $_REQUEST['flag'];
+
+$cf = new ColumnFamily($conn,'PERSON_PERSON');
+$index_exp1 = CassandraUtil::create_index_expression('Person_username',$friend);
+$index_exp2 = CassandraUtil::create_index_expression('friends_username',$person);
+
 if ($flag == "add"){
-$sql = "insert into PERSON_PERSON (person_username,friends_username,is_accepted) values ('$friend','$person',0)";
+   $personid =  exec("python /usr/pysnowflakeclient/pysnowflakeclient/__init__.py");
+   $cf->insert($personid,array('id' => $personid,'Person_username' => $friend,'friends_username' => $person ,'is_accepted' => 0));
 }else if ($flag == "delete"){
-$sql = "delete from PERSON_PERSON where person_username='$friend' and friends_username='$person' and is_accepted=0";
+	$index_exp3 = CassandraUtil::create_index_expression('is_accepted',0);
+	$index_clause = CassandraUtil::create_index_clause(array($index_exp1,$index_exp2,$index_exp3));
+	$result = $cf->get_indexed_slices($index_clause);
+	foreach($result as $key => $col) {
+   	$cf->remove($col["id"]);
+   }
 }else if($flag == "frnd"){
-$sql = "delete from PERSON_PERSON where person_username='$person' and friends_username='$friend' and is_accepted=1";
+	$index_exp3 = CassandraUtil::create_index_expression('is_accepted',1);
+	$index_clause = CassandraUtil::create_index_clause(array($index_exp1,$index_exp2,$index_exp3));
+	$result = $cf->get_indexed_slices($index_clause);
+	foreach($result as $key => $col) {
+      $cf->remove($col["id"]);
+   }
 }
-$connection->exec($sql);
 if($flag == "frnd"){
 header("Location:friends.php?username=$person&flag=$flag&reqUser=$friend");
 }else{

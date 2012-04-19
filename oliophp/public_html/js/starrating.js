@@ -57,7 +57,7 @@ function outStars(starIndex,rating) {
 function editoverStars(starIndex,rating) {
         if (document.images) {
                 for (i=1;i<=5;i++) {
-                        if (i <= starIndex) {
+                			if (i <= starIndex) {
                                 document.images['editstar_' + i].src = on[i - 1].src;
                         } else {
                                 document.images['editstar_' + i].src = off[i - 1].src;
@@ -92,7 +92,7 @@ function editoutStars(starIndex,rating) {
     function handleEditRating() {
          if (http.readyState == 4) {
              result = http.responseText.split(",");
-             document.getElementById(result[0]).innerHTML=result[1];
+				 document.getElementById(result[0]).innerHTML = result[1];
          }
     }
     function editrateEvent(rating,cid) {

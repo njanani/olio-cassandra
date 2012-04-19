@@ -47,7 +47,7 @@
         </h2>
         <?=$ed?>
         <div class="extra_details" style="display: none;">
-        <? 
+  <? 
          if ($submitter == $signedinuser) { ?>
               <form method="post" action="addEvent.php?socialEventID=<?echo $se;?>" class="button-to">
             <div>

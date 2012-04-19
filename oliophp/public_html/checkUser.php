@@ -24,14 +24,24 @@
  */ 
     
 require_once("../etc/config.php");
-$conn = DBConnection::getInstance();
+require_once('../etc/phpcassa_config.php');
 
 $isUseravailable = $_REQUEST['user'];
-$checkun = " select 'x' from PERSON where username='$isUseravailable' ";
-$res = $conn->query($checkun);
-if ($res->next()) {
-    echo "<span style='color:red'><small>".$isUseravailable." already in use.....please try another username.</small></span></br> ";
-} else {
-    echo "<span style='color:red'><small>Congratulations!! ".$isUseravailable." is available. </small></span></br>";
+
+$column_family = new ColumnFamily($conn,'PERSON');
+$index_exp = CassandraUtil::create_index_expression('username',$isUseravailable);
+$index_clause = CassandraUtil::create_index_clause(array($index_exp));
+$res = $column_family->get_indexed_slices($index_clause);
+$userExists = false;
+
+foreach ($res as $key => $col) {
+	$userExists = true;
 }
+
+if ($userExists) {
+  	echo "<span style='color:red'><small>".$isUseravailable." already in use.....please try another username.</small></span></br> ";
+} else {
+   echo "<span style='color:red'><small>Congratulations!! ".$isUseravailable." is available. </small></span></br>";
+}
+
 ?>

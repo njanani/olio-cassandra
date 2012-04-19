@@ -25,6 +25,7 @@
 
 session_start();
 require_once("../etc/config.php");
+require_once('../etc/phpcassa_config.php');
 $user= $_REQUEST['username'];
 $reqUser = $_REQUEST['reqUser'];
 $flag = $_REQUEST['flag'];
@@ -57,10 +58,21 @@ if(!is_null($page)){
     $next_page = $numPages;
     }
 }else{
-    $query = "select count(*) as count from PERSON_PERSON ".
+/*    $query = "select count(*) as count from PERSON_PERSON ".
              "where person_username='$user' and is_accepted=1";
     $result = $connection->query($query);
     $row = $result->getArray();
+*/
+	$query = new ColumnFamily($conn,'PERSON_PERSON');
+	$index_exp_frnd = CassandraUtil::create_index_expression('Person_username',$user );
+	$index_exp_acpt = CassandraUtil::create_index_expression('is_accepted',1);
+	$index_clause = CassandraUtil::create_index_clause(array($index_exp_frnd,$index_exp_acpt));
+	$rows =  $query->get_indexed_slices($index_clause,$columns=array('friends_username'));
+	$row['count'] = 0;
+	foreach($rows as $key => $columns) {
+		$row['count'] +=1;
+	}
+
     $count = $row['count'];
     unset($result);
     $numPages  = ceil($count / 10);;
@@ -76,7 +88,7 @@ require("../views/paginate.php");
 $paginateView = ob_get_clean();
 //End Pagination
 
-$friendsList = $friends->getFriendsList($user,$loggedinuser,$connection,$offset);
+$friendsList = $friends->getFriendsList($user,$loggedinuser,$conn,$offset);
 ob_start();
 require("../views/friends.php");
 $fillContent = ob_get_clean();

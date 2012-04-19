@@ -25,31 +25,35 @@
     
 session_start();
 require_once("../etc/config.php");
+require_once('../etc/phpcassa_config.php');
 $se = $_REQUEST['id'];
 $username = $_SESSION["uname"];
 if(!is_null($username)){
-    $connection = DBConnection::getWriteInstance();
-    $deleteuser = "delete from PERSON_SOCIALEVENT where username='$username' and socialeventid='$se'";
-    $connection->beginTransaction();
-    $connection->exec($deleteuser);
+	$cf = new ColumnFamily($conn,'PERSON_SOCIALEVENT');
+	$index_exp = CassandraUtil::create_index_expression('socialeventid',$se); 
+	$index_exp1 = CassandraUtil::create_index_expression('username',$username);
+	$index_clause = CassandraUtil::create_index_clause(array($index_exp,$index_exp1));
+	$result = $cf->get_indexed_slices($index_clause);
+	
+	foreach ($result as $key => $column) {
+		$id = $column['id'];
+	}
+	$cf->remove($id);
 }
 
-if (!isset($connection)) {
-    $connection = DBConnection::getInstance();
-}
-$listquery = "select username from PERSON_SOCIALEVENT where socialeventid = '$se'";
-$listqueryresult = $connection->query($listquery);
 $username = $_SESSION["uname"];
-while($listqueryresult->next()) {
-        $tmp_uname = $listqueryresult->get(1);
+
+$listquery = new ColumnFamily($conn,'PERSON_SOCIALEVENT');
+$index_exp = CassandraUtil::create_index_expression('socialeventid', $se);
+$index_clause = CassandraUtil::create_index_clause(array($index_exp));
+$listqueryresult = $listquery->get_indexed_slices($index_clause);
+
+foreach ($listqueryresult as $key => $column) {
+	$tmp_uname = $column['username'];
         $attendeeList = $attendeeList." ".'<a href="users.php?username='.$tmp_uname.'">'.$tmp_uname.'</a><br />';
 }
 
 unset($listqueryresult);
-
-if (!is_null($username)) {
-    $connection->commit();
-}
 
 $numofattendees = $_SESSION["numofattendees"] - 1;
 $_SESSION["numofattendees"] = $numofattendees;

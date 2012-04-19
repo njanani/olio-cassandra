@@ -37,18 +37,24 @@ echo '<?xml-stylesheet type="text/xsl" href="xsl/feed.xsl"?>';
 
 <?
 require_once("../etc/config.php");
-
+require_once('../etc/phpcassa_config.php');
+/*
 $connection = DBConnection::getInstance();
 $q="SELECT socialeventid,title,description,UNIX_TIMESTAMP(createdtimestamp) AS pubDate FROM SOCIALEVENT ORDER BY pubDate DESC LIMIT 0,15";
 $result1=$connection->query($q);
+*/
+$q = new ColumnFamily($conn,'SOCIALEVENT');
+$index_exp_dummy = CassandraUtil::create_index_expression('disabled',0,cassandra_IndexOperator::EQ);
+$index_clause = CassandraUtil::create_index_clause(array($index_exp_dummy),0,15);
+$result1 =  $q->get_indexed_slices($index_clause);
 
-while($result=$result1->getArray()){
+foreach($result1 as $key => $result){
 ?>
      <item>
         <title> <?=htmlentities(strip_tags($result['title'])); ?></title>
         <description> <?=htmlentities(strip_tags($result['description'],'ENT_QUOTES'));?></description>
         <link>http://brazilian:8080/events.php?socialEventID=<?=$result['socialeventid'];?></link>
-        <pubDate> <?=strftime( "%a, %d %b %Y %T %Z" , $result['pubDate']); ?></pubDate>
+        <pubDate> <?=strftime( "%a, %d %b %Y %T %Z" , $result['createdtimestamp']); ?></pubDate>
      </item>  
 <? 
 } 

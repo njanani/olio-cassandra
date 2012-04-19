@@ -24,16 +24,21 @@
  */ 
 session_start();
 require_once("../etc/config.php");
-$connection = DBConnection::getWriteInstance();
+require("../etc/phpcassa_config.php");
 $friends = Users_Controller::getInstance();
 $person = $_REQUEST['person'];
 $friend = $_REQUEST['friend'];
-$rejectSql = "delete from PERSON_PERSON where person_username='$person' and friends_username='$friend'";
-$connection->beginTransaction();
-$connection->exec($rejectSql);
-$_SESSION["friendshipreqs"]=$friends->numFriendshipRequests($person,$connection);
-$incomingRequests = $friends->incomingRequests($person,$connection);
-$connection->commit();
+$rejectSql = new ColumnFamily($conn,'PERSON_PERSON');
+$index_exp_person = CassandraUtil::create_index_expression('Person_username',$person);
+$index_exp_friend = CassandraUtil::create_index_expression('friends_username',$friend);
+$index_clause = CassandraUtil::create_index_clause(array($index_exp_person,$index_exp_friend));
+$result = $rejectSql->get_indexed_slices($index_clause);
+foreach($result as $key=>$col) {
+	$rejectSql->remove($col['id']);
+}
+
+$_SESSION["friendshipreqs"]=$friends->numFriendshipRequests($person,$conn);
+$incomingRequests = $friends->incomingRequests($person,$conn);
 echo "<font color=green>You rejected ". $friend."'s friendship request.</font>\n";
 echo "friendship requests (".$_SESSION["friendshipreqs"].")\n";
 echo $incomingRequests ;

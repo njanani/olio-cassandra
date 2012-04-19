@@ -27,6 +27,7 @@
 
 session_start();
 require_once("../etc/config.php");
+require_once("../etc/phpcassa_config.php");
 
 $connection = DBConnection::getInstance();
 $register = Users_Controller::getInstance();
@@ -34,20 +35,24 @@ $register = Users_Controller::getInstance();
 if ($_POST['submit'] == "Login") {
     $un=$_POST['user_name'];
     $pwd=$_POST['password'];
-    $result = $register->authenticate($un,$pwd,$connection);
-    if ($result->next()) {
-          session_register("uname");
+
+	$result = $register->authenticate($un,$pwd,$conn);
+	if($result) {
+	  session_register("uname");
           $uname=$un;
           $sid=session_id();
           $_SESSION["uname"]=$uname;
           $_SESSION["sid"]=$sid;
           $success="authenticated";
     }
+
     unset($result);
-    $numFriendshipReq = $register->numFriendshipRequests($un,$connection);
+    $numFriendshipReq = $register->numFriendshipRequests($un,$conn);
+
     $_SESSION["friendshipreqs"] = $numFriendshipReq;
 
 }
+
 if(!is_null($success)){
 header("Location:index.php?flag=".$success);
 }else{

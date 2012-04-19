@@ -20,7 +20,7 @@
 class ODBCConnection extends DBConnection {
 
     var $connection;
-
+/*
     private function ensureConnection() {
         if (!isset($this->dbTarget)) {
             $this->selectInstance();
@@ -45,15 +45,20 @@ class ODBCConnection extends DBConnection {
         $this->ensureConnection();
         if (isset($args)) {
         	error_log("You are using prepared statements. This is extremely slow!");
+		echo "if part in oDBCConnection";
         	$result = odbc_prepare($this->connection, $sql);
         	if (!odbc_execute($result, $args))
         		throw new Exception(odbc_errormsg($this->connection));
         	return new ODBCResult($this, $result);
+//		return NULL;
         } else {
+		error_log($sql);
+		echo "else part in ODBCConnection";
             return new ODBCResult($this, odbc_exec($this->connection, $sql));
+//	return NULL;
         }
     }
-    
+*/    
     /**
      * Executes the supplied SQL statement and returns
      * the result of the call.
@@ -62,6 +67,7 @@ class ODBCConnection extends DBConnection {
      *  
      * @param   string  SQL to execute
      */  
+/*
     function exec() {
     	if (func_num_args() > 1) {
     	    $args = func_get_args();
@@ -79,6 +85,7 @@ class ODBCConnection extends DBConnection {
         	return odbc_num_rows($result);
         } else {
             return odbc_exec($this->connection, $sql);
+//	return NULL;
         }
     }
 
@@ -103,5 +110,7 @@ class ODBCConnection extends DBConnection {
         }
         unset($this->connection);
     }
+*/
 }
+
 ?>

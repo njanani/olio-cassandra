@@ -80,7 +80,7 @@
   <? if ($tmp_uname == $_SESSION["uname"]) { ?>
             <a href="#edit" id="edit<?php echo $tmp_commentid;?>" class='edit_comment' style='color:#999;' onclick="return ShowHideLayer('<?php echo "editing".$tmp_commentid;?>');">Edit</a>
             or
-            <a href="#delete" id="delete<?php echo $tmp_commentid;?>" onclick="deleteCR(<?php echo $tmp_commentid;?>,<?php echo $se;?>);" class='edit_comment' style='color:#999;' >Delete</a>
+            <a href="#delete" id="delete<?php echo $tmp_commentid;?>" onclick="deleteCR('<?php echo $tmp_commentid;?>','<?php echo $se;?>');" class='edit_comment' style='color:#999;' >Delete</a>
 		  your comment<br/>
 <div id="editing<?php echo $tmp_commentid;?>" style="display: none;">
             <div id="editcomment_form<?php echo $tmp_commentid;?>">
@@ -90,14 +90,14 @@
                         <br/>
                         <strong>Rating</strong><br />
                         <div id="editrating<?php echo $tmp_commentid;?>" class="simple_comment_rating">
-                            <img border="0" src="images/star_off.png" onmouseout='editoutStars(1, 0.0);' name="editstar_1" id="editstar_1" onclick='editrateEvent(1,<?php echo $tmp_commentid;?>);' onmouseover='editoverStars(1, 0.0);' alt="1 star" title="1 star" align="absmiddle"><img
-                            border="0" src="images/star_off.png" onmouseout='editoutStars(2, 0.0);' name="editstar_2" id="editstar_2" onclick='editrateEvent(2,<?php echo $tmp_commentid;?>);' onmouseover='editoverStars(2, 0.0);' alt="2 stars" title="2 stars" align="absmiddle"><img
-                            border="0" src="images/star_off.png" onmouseout='editoutStars(3, 0.0);' name="editstar_3" id="editstar_3" onclick='editrateEvent(3,<?php echo $tmp_commentid;?>);' onmouseover='editoverStars(3, 0.0);' alt="3 stars" title="3 stars" align="absmiddle"><img
-                            border="0" src="images/star_off.png" onmouseout='editoutStars(4, 0.0);' name="editstar_4" id="editstar_4" onclick='editrateEvent(4,<?php echo $tmp_commentid;?>);' onmouseover='editoverStars(4, 0.0);' alt="4 stars" title="4 stars" align="absmiddle"><img
-                            border="0" src="images/star_off.png" onmouseout='editoutStars(5, 0.0);' name="editstar_5" id="editstar_5" onclick='editrateEvent(5,<?php echo $tmp_commentid;?>);' onmouseover='editoverStars(5, 0.0);' alt="5 stars" title="5 stars" align="absmiddle">
+                            <img border="0" src="images/star_off.png" onmouseout='editoutStars(1, 0.0);' name="editstar_1" id="editstar_1" onclick='editrateEvent(1,"<?php echo $tmp_commentid;?>");' onmouseover='editoverStars(1, 0.0);' alt="1 star" title="1 star" align="absmiddle"><img
+                            border="0" src="images/star_off.png" onmouseout='editoutStars(2, 0.0);' name="editstar_2" id="editstar_2" onclick='editrateEvent(2,"<?php echo $tmp_commentid;?>");' onmouseover='editoverStars(2, 0.0);' alt="2 stars" title="2 stars" align="absmiddle"><img
+                            border="0" src="images/star_off.png" onmouseout='editoutStars(3, 0.0);' name="editstar_3" id="editstar_3" onclick='editrateEvent(3,"<?php echo $tmp_commentid;?>");' onmouseover='editoverStars(3, 0.0);' alt="3 stars" title="3 stars" align="absmiddle"><img
+                            border="0" src="images/star_off.png" onmouseout='editoutStars(4, 0.0);' name="editstar_4" id="editstar_4" onclick='editrateEvent(4,"<?php echo $tmp_commentid;?>");' onmouseover='editoverStars(4, 0.0);' alt="4 stars" title="4 stars" align="absmiddle"><img
+                            border="0" src="images/star_off.png" onmouseout='editoutStars(5, 0.0);' name="editstar_5" id="editstar_5" onclick='editrateEvent(5,"<?php echo $tmp_commentid;?>");' onmouseover='editoverStars(5, 0.0);' alt="5 stars" title="5 stars" align="absmiddle">
                        </div>
                        <div id="editratingText<?php echo $tmp_commentid;?>"></div>
-                       <input type="submit" value="Comment" name="editcommentsratingsubmit<?php echo $tmp_commentid;?>">
+                       <input type="submit" value="Comment" name="editcommentsratingsubmit">
                        <input type="hidden" value="<?php echo $tmp_commentid;?>" name="editingcid">
                  </form>
             </div>

@@ -24,18 +24,34 @@
  */    
 session_start();
 require_once("../etc/config.php");
+require_once('../etc/phpcassa_config.php');
 $username= $_REQUEST['username'];
+
 $connection = DBConnection::getInstance();
 $events = Events_Controller::getInstance();
 $friends = Users_Controller::getInstance();
-$friendCloud = $friends->getFriendCloud($username,$connection);
-$incomingRequests = $friends->incomingRequests($username,$connection);
-$outgoingRequests = $friends->outgoingRequests($username,$connection);
+$friendCloud = $friends->getFriendCloud($username,$conn);
+$incomingRequests = $friends->incomingRequests($username,$conn);
+$outgoingRequests = $friends->outgoingRequests($username,$conn);
 $flag = false;
-$recentlyPostedEvents = $events->getRecentlyPostedEventsOfUser($username,$connection,$flag,null);
-$sql = "select username, firstname, lastname, email, telephone, imagethumburl, summary, timezone, street1, street2, city, state, zip, country from PERSON as p, ADDRESS as a where p.ADDRESS_addressid=a.addressid and username='$username'"; 
-$result = $connection->query($sql);
-$row = $result->getArray();
+$recentlyPostedEvents = $events->getRecentlyPostedEventsOfUser($username,$conn,$flag,null);
+
+$column_family = new ColumnFamily($conn,'PERSON');
+$index_exp = CassandraUtil::create_index_expression('username', $username);
+$index_clause = CassandraUtil::create_index_clause(array($index_exp));
+$rows = $column_family->get_indexed_slices($index_clause);
+$column_family1 = new ColumnFamily($conn,'ADDRESS');
+
+foreach($rows as $key => $row) {
+	$addr_rows = $column_family1->get($row['ADDRESS_addressid']);
+	$row['street1']=$addr_rows['street1'];
+	$row['street2']=$addr_rows['street2'];
+	$row['city']=$addr_rows['city'];
+	$row['state']=$addr_rows['state'];
+	$row['zip']=$addr_rows['zip'];
+	$row['country']=$addr_rows['country'];
+}
+
 $username = $row['username'];
 $firstname = $row['firstname'];
 $lastname = $row['lastname'];

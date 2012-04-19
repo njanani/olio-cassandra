@@ -19,6 +19,7 @@
     
 session_start();    
 require_once("../etc/config.php");
+require_once('../etc/phpcassa_config.php');
 $connection = DBConnection::getWriteInstance();
 
 // 1. Get data from submission page.
@@ -39,7 +40,7 @@ $month = $_POST['month'];
 $day = $_POST['day'];
 $hour = $_POST['hour'];
 $minute = $_POST['minute'];
-$eventtime=$year."-".$month."-".$day." ".$hour.":".$minute.":00";
+$eventtime=strtotime($year.$month.$day.$hour.$minute."00");
 $eventdate=$year."-".$month."-".$day;
 $tags=$_POST['tags'];
 //echo "Tags = ".$tags."<br/>";
@@ -51,108 +52,86 @@ $literature_name=basename($_FILES['upload_literature']['name']);
 // 2. Get coordinates of the address.
 $geocode = new Geocoder($street1, $city, $state, $zip);
 
-
 // 3. Insert address and get the address id.
-$insertaddr = "insert into ADDRESS (street1, street2, city, state, zip, country, latitude, longitude) ".
-                      "values ('$strt1', '$street2', '$cty', '$state', '$zip', '$country', ".
-                      "'$geocode->latitude', '$geocode->longitude')";
-$connection->beginTransaction();
-$connection->exec($insertaddr);
-$cq = "select last_insert_id()";
-$idres = $connection->query($cq);
-while($idres->next()) {
-    $addrid = $idres->get(1);
-}
-unset($idres);
+$insertaddr = new ColumnFamily($conn,'ADDRESS');
+$addrid = exec("python /usr/pysnowflakeclient/pysnowflakeclient/__init__.py");
+$insertaddr->insert($addrid,array('addressid' => $addrid,'street1' => $strt1 ,'street2' => $street2,'city' => $cty,'state' => $state,
+'zip' => $zip,'country' => $country,'latitude' => $geocode->latitude, 'longitude' => $geocode->longitude));
 
 // 4. Insert event and get the event id.
 $usrnm = $_SESSION["uname"];
 $evid =  $_SESSION["addEventSE"];
 
 if (isset($_POST['addeventsubmit'])) {
-	$insertse = "insert into SOCIALEVENT (title, description,summary, submitterUserName, ADDRESS_addressid,telephone, timezone, eventtimestamp, eventdate) values ('$title', '$description','$summary', '$usrnm', '$addrid', '$telephone', '$timezone', '$eventtime', '$eventdate')";
-    $connection->exec($insertse);
-    $idres = $connection->query($cq);
-    while ($idres->next()) {
-        $eventid=$idres->get(1);
-    }
-    unset($idres);
+	$insertse = new ColumnFamily($conn,'SOCIALEVENT');
+	$eventid =  exec("python /usr/pysnowflakeclient/pysnowflakeclient/__init__.py");
+	$insertse->insert($eventid,array('socialeventid' => $eventid,'title' => $title ,'description' => $description,'summary' => $summary ,'submitterUsername' => $usrnm,'ADDRESS_addressid' => $addrid ,'telephone' => $telephone,'timezone' => $timezone, 'eventtimestamp' => $eventtime, 'createdtimestamp' => time(), 'eventdate' => $eventdate,'totalscore' => 0,'disabled' => 0));
 }else if (isset($_POST['addeventsubmitupdate'])) {
-    $updse = "update SOCIALEVENT set title='$title',description='$description',summary='$summary', submitterUserName='$usrnm',ADDRESS_addressid='$addrid',telephone='$telephone',timezone='$timezone',eventtimestamp='$eventtime',eventdate='$eventdate' where socialeventid = '$evid'";
-    $upd = $connection->exec($updse);
-    if ($upd != 1)
+	$cf = new ColumnFamily($conn,'SOCIALEVENT');
+	$isSuccess = $cf->insert($evid,array('title' => $title,'description' => $description,'summary' => $summary,'submitterUserName' => $usrnm,'ADDRESS_addressid' => $addrid,'telephone' => $telephone,'timezone' => $timezone,'eventtimestamp' => $eventtime,'eventdate' => $eventdate));
+
+    if (!$isSuccess)
     throw new Exception("Error updating event with image locations. Update returned $updated!");
 
 }
 
 // 5. Check tags. Insert if not available and get id, then insert relationship.
 $tagList = preg_split("/[\s,]+/", trim($tags));
-//echo "TagList = ".$tagList."<br/>";
 
 // We need to sort the tags before insert/update. Different tag sequences
 // can lead to deadlocks.
 sort($tagList);
-
 foreach ($tagList as $tag) {
+	 $cf = new ColumnFamily($conn,'SOCIALEVENTTAG');
+    $index_exp = CassandraUtil::create_index_expression('tag',$tag);
+    $index_clause = CassandraUtil::create_index_clause(array($index_exp));
+    $result = $cf->get_indexed_slices($index_clause);
+
     if (isset($_POST['addeventsubmit'])) {
-        //echo "in foreach tag=" .$tag."<br/>";
-        // Try to update first.
-        $updatetagcount="update SOCIALEVENTTAG set refcount = refcount + 1 where tag='$tag'";
-        $count = $connection->exec($updatetagcount);
-        //echo "count=".$count."<br/>";
-        if ($count == 0) { // Update did not find the tag, so we insert.
-            $inserttag="insert into SOCIALEVENTTAG (tag,refcount) values ('$tag',1)";
-            $inserttagresult = $connection->exec($inserttag);
-            $idres = $connection->query($cq);
-            while ($idres->next()) {
-                $tagid = $idres->get(1);
-            }
-            unset($idres);
-        } else { // Even if we update, we still need the tagid.
-            $checktag = "select socialeventtagid from SOCIALEVENTTAG where tag='$tag'";
-            $checktagresult = $connection->query($checktag);
-            $rowsFound = false;
-            while ($checktagresult->next()) {
-                $rowsFound = true;
-                $tagid = $checktagresult->get(1);
-            }
-            unset($checktagresult);
+        $count = 0;
+
+        foreach ($result as $key => $col) {
+           $count = 1;
+			  // Even if we update, we still need the tagid.
+           $tagid = $col['socialeventtagid'];
+			  $cf->insert($tagid,array('refcount' => $col['refcount'] + 1));
         }
+        if ($count == 0) { // Update did not find the tag, so we insert.
+				$inserttag = new ColumnFamily($conn,'SOCIALEVENTTAG');
+				$tagid =  exec("python /usr/pysnowflakeclient/pysnowflakeclient/__init__.py");
+				$inserttag->insert($tagid,array('socialeventtagid' => $tagid,'tag' => $tag,'refcount' => 1 ));
+        } 
+
         // Now, insert relationship.
-        $inserttagid = "insert into SOCIALEVENTTAG_SOCIALEVENT (socialeventtagid, socialeventid) ".
-                           "values ('$tagid', '$eventid')";
-        $connection->exec($inserttagid);
+		  $inserttagid = new ColumnFamily($conn,'SOCIALEVENTTAG_SOCIALEVENT');
+		  $id = exec("python /usr/pysnowflakeclient/pysnowflakeclient/__init__.py");
+		  $inserttagid->insert($id,array('id' => $id,'socialeventtagid' => $tagid,'socialeventid' => $eventid));
     }
 
     if (isset($_POST['addeventsubmitupdate'])) {
-        //echo "in foreach tag=" .$tag."<br/>";
-        $checktag = "select socialeventtagid from SOCIALEVENTTAG where tag='$tag'";
-        $checktagresult = $connection->query($checktag);
-        $rowsFound = false;
-        while ($checktagresult->next()) {
-            $rowsFound = true;
-            $tagid = $checktagresult->get(1);
-        }
-        unset($checktagresult);
+		$rowsFound = false;
+		foreach ($result as $key => $row) {
+	        $rowsFound = true;
+			$tagid = $key;
+		}
+
         if(!$rowsFound){
-            $inserttag="insert into SOCIALEVENTTAG (tag,refcount) values ('$tag',1)";
-            $inserttagresult = $connection->exec($inserttag);
-            $idres = $connection->query($cq);
-            while ($idres->next()) {
-                $tagid = $idres->get(1);
-            }
-            unset($idres);
-            $inserttagid = "insert into SOCIALEVENTTAG_SOCIALEVENT (socialeventtagid, socialeventid) ".
-                           "values ('$tagid', '$evid')";
-            $connection->exec($inserttagid);
+				$inserttag = new ColumnFamily($conn,'SOCIALEVENTTAG');
+				$tagid = exec("python /usr/pysnowflakeclient/pysnowflakeclient/__init__.py");
+				$inserttag->insert($tagid,array('socialeventtagid' => $tagid,'tag' => $tag,'refcount' => 1));
+
+				$inserttagid = new ColumnFamily($conn,'SOCIALEVENTTAG_SOCIALEVENT');
+				$id = exec("python /usr/pysnowflakeclient/pysnowflakeclient/__init__.py");
+				$inserttagid->insert($id,array('id' => $id,'socialeventtagid' => $tagid,'socialeventid' => $evid));
         }
     }
 }
 
 // 6. Insert submitter to the event attendee list.
 if (isset($_POST['addeventsubmit'])) {
-    $insertPS = "insert into PERSON_SOCIALEVENT values('$usrnm','$eventid')";
-    $connection->exec($insertPS);
+	$insertPS = new ColumnFamily($conn,'PERSON_SOCIALEVENT');
+	$id = exec("python /usr/pysnowflakeclient/pysnowflakeclient/__init__.py");	
+	$insertPS->insert($id,array('id' => $id,'username' => $usrnm,'socialeventid' => $eventid));	
 }
 
 // 7. Determine image and thumbnail file names.
@@ -176,13 +155,14 @@ if ($image_name != "") {
         $modified_image_name = "";
         $imagethumb = "";
     }else if (isset($_POST['addeventsubmitupdate'])) {
-        $imgq = "select imageurl,imagethumburl from SOCIALEVENT where socialeventid='$evid'";
-        $imgqresult = $connection->query($imgq);
-        while ($imgqresult->next()) {
-            $modified_image_name = $imgqresult->get(1);
-            $imagethumb = $imgqresult->get(2);
-        }
-        unset($imgqresult);
+			$imgq = new ColumnFamily($conn,'SOCIALEVENT');
+        $imgqresult =  $imgq->get($evid,$columns=array('imageurl', 'imagethumburl'));
+			if($imgqresult)
+			{
+				$modified_image_name = $imgqresult['imageurl'];
+				$imagethumb = $imgqresult['imagethumburl'];
+			}
+      	  unset($imgqresult);
     }
 }
 
@@ -201,17 +181,17 @@ if ($literature_name != "") {
         $default_literature = true;
         $modified_literature_name="";
     }else if (isset($_POST['addeventsubmitupdate'])) {
-        $litq = "select literatureurl from SOCIALEVENT where socialeventid='$evid'";
-        $litqresult = $connection->query($litq);
-        while ($litqresult->next()) {
-            $modified_literature_name=$litqresult->get(1);
-        }
+			$litq = new ColumnFamily($conn,'SOCIALEVENT');
+        $litqresult =  $imgq->get($evid,$columns=array('literatureurl'));
+		if( $litqresult)
+		$modified_literature_name =  $litqresult['literatureurl'];
+
         unset($litqresult);
     }
 }
 
 // We end the DB transaction here.
-$connection->commit();
+//$connection->commit();
 
 // 9. Generate thumbnail and save images to file storage (outside tx)
 if ($image_name != "") {
@@ -255,22 +235,12 @@ if ($literature_name != "") {
 // properly stored. It is a single statement transaction and with autocommit
 // on, we do not need to start and commit.
 if (isset($_POST['addeventsubmit'])) {
-    $updatese = "update SOCIALEVENT set imageurl = '$modified_image_name', ".
-                    "imagethumburl = '$imagethumb', ".
-                    "literatureurl = '$modified_literature_name' ".
-                    "where socialeventid = '$eventid'";
+	$updatese = new ColumnFamily($conn,'SOCIALEVENT');
+	$updatese->insert($eventid,array('imageurl' => $modified_image_name,'imagethumburl' => $imagethumb,'literatureurl' => $modified_literature_name));
 } else if (isset($_POST['addeventsubmitupdate'])) {
-    //echo "imageurl = ".$modified_image_name;
-    //echo "imagethumburl =".$imagethumb;
-    //echo "literatureurl =".$modified_literature_name;
-    //echo "evid =".$evid;
-    $updatese = "update SOCIALEVENT set imageurl = '$modified_image_name', ".
-                    "imagethumburl = '$imagethumb', ".
-                    "literatureurl = '$modified_literature_name' ".
-                    "where socialeventid = '$evid'";
+	$updatese = new ColumnFamily($conn,'SOCIALEVENT');
+	$updatese->insert($evid,array('imageurl' => $modified_image_name,'imagethumburl' => $imagethumb,'literatureurl' => $modified_literature_name));
 }
-
-$updated = $connection->exec($updatese);
 
 // 12. Redirect the results.
 if (isset($_POST['addeventsubmit'])) {
@@ -278,4 +248,5 @@ if (isset($_POST['addeventsubmit'])) {
 }else if (isset($_POST['addeventsubmitupdate'])) {
     header("Location:events.php?socialEventID=".$evid);
 }
+
 ?>

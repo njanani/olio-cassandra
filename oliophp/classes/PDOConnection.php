@@ -20,7 +20,6 @@
 class PDOConnection extends DBConnection {
 
     var $connection;
-    
     private function ensureConnection() {
         if (!isset($this->dbTarget)) {
             $this->selectInstance();
@@ -36,7 +35,6 @@ class PDOConnection extends DBConnection {
                 throw new Exception("Unable to connect " . $this->dbTarget."!");
         }    	
     }
-    
 
     function query() {
     	if (func_num_args() > 1) {
@@ -53,9 +51,10 @@ class PDOConnection extends DBConnection {
         	$stmt->execute($args);
         	return new PDOResult($this, $stmt);
         } else {
-        	$result = $this->connection->query($sql);
-            return new PDOResult($this, $result);
-        }
+		error_log($sql);
+	       	$result = $this->connection->query($sql);
+	        return new PDOResult($this, $result);
+	}
     }
 
     function exec() {
@@ -100,5 +99,8 @@ class PDOConnection extends DBConnection {
             unset($this->connection);
         }
     }
+
+	
+
 }
 ?>

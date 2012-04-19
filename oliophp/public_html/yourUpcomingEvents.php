@@ -23,11 +23,12 @@
  */
 session_start();
 require_once("../etc/config.php");
+require_once('../etc/phpcassa_config.php');
 $connection = DBConnection::getInstance();
 $un = $_SESSION["uname"];
 $events = Events_Controller::getInstance();
 $flag = false;
-$yourUpcomingEvents = $events->getUpcomingEventsForUser($un,$connection,$flag,null);
+$yourUpcomingEvents = $events->getUpcomingEventsForUser($un,$conn,$flag,null);
 ob_start();
 require("../views/yourUpcomingEvents.php");
 $yourUpcomingList = ob_get_clean();

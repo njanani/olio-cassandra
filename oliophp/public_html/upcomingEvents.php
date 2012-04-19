@@ -23,6 +23,7 @@
  */
 session_start();
 require_once("../etc/config.php");
+require_once('../etc/phpcassa_config.php');
 $connection = DBConnection::getInstance();
 $un = $_SESSION["uname"];
 $events = Events_Controller::getInstance();
@@ -56,9 +57,26 @@ if(!is_null($page)){
     $next_page = $numPages;
     }
 }else{
-    $query = "select count(*) as count From SOCIALEVENT as se,PERSON_SOCIALEVENT as ps where se.socialeventid=ps.socialeventid and se.eventtimestamp>=CURRENT_TIMESTAMP and ps.username='$un'";
+/*    $query = "select count(*) as count From SOCIALEVENT as se,PERSON_SOCIALEVENT as ps where se.socialeventid=ps.socialeventid and se.eventtimestamp>=CURRENT_TIMESTAMP and ps.username='$un'";
     $result = $connection->query($query);
     $row = $result->getArray();
+*/	
+	$row['count'] = 0;
+	$sql = new ColumnFamily($conn,'PERSON_SOCIALEVENT');
+	$index_exp_uname = CassandraUtil::create_index_expression('username',$un);
+	$index_clause = CassandraUtil::create_index_clause(array($index_exp_uname));
+	$rows =  $sql->get_indexed_slices($index_clause,$columns=array('socialeventid'));
+	$query = new ColumnFamily($conn,'SOCIALEVENT');
+
+	foreach($rows as $key => $columns) {
+		$index_exp1 = CassandraUtil::create_index_expression('socialeventid', $columns['socialeventid'],cassandra_IndexOperator::EQ);
+		$index_exp2 = CassandraUtil::create_index_expression('eventtimestamp',time(),cassandra_IndexOperator::GTE);
+		$index_clause1 = CassandraUtil::create_index_clause(array($index_exp1,$index_exp2));
+		$result =  $query->get_indexed_slices($index_clause1);
+		foreach($result as $key1=>$value1)
+			$row['count'] +=1;
+	}
+
     $count = $row['count'];
     unset($result);
     $numPages  = ceil($count / 10);;
@@ -74,7 +92,7 @@ require("../views/paginate.php");
 $paginateView = ob_get_clean();
 //End Pagination
 
-$upcomingEvents = $events->getUpcomingEventsForUser($un,$connection,$flag,$offset);
+$upcomingEvents = $events->getUpcomingEventsForUser($un,$conn,$flag,$offset);
 ob_start();
 require("../views/upcomingEvents.php");
 $fillContent = ob_get_clean();

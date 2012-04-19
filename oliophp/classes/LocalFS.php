@@ -150,8 +150,8 @@ class LocalFS extends FileSystem {
         $filename = basename($srcpath); //remove the file's path so we can work with just the filename.
         $attrs = $this->mapAttributes($filename);
 	    $destpath = $this->getFullPath($filename, $attrs);
-
-        if ($destpath == "invalid") {
+        
+		  if ($destpath == "invalid") {
             printf("Invalid response from getFullPath");
             return false;
         } else {
@@ -160,7 +160,7 @@ class LocalFS extends FileSystem {
                 if ($this->createPath($attrs["type"], $attrs["id"])) {
                     //we are assuming that the file will be stored in /tmp
                     return copy($srcpath, $destpath);
-                } else {//path cretion failed
+                } else {//path creation failed
                     return false;
                 }
             } else {//we are not allowing overwrite

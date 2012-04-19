@@ -24,14 +24,16 @@
  */
 session_start();
 require_once("../etc/config.php");
+require("../etc/phpcassa_config.php");
 $connection = DBConnection::getInstance();
 $isFriend = Users_Controller::getInstance();
 $user = $_REQUEST['query'];
 $reqUser = $_REQUEST['reqUser'];
 $flag = $_REQUEST['flag'];
 $loggedinuser = $_SESSION["uname"];
+
 if(!is_null($user) && !empty($user)){
-$users=$isFriend->findUser($user,$loggedinuser,$connection);
+$users=$isFriend->findUser($user,$loggedinuser,$conn);
 }
 ob_start();
 require("../views/findUsers.php");
@@ -42,4 +44,5 @@ $fillMessage = "<font color=green>Friendship requested</font>";
 $fillMessage ="<font color=green>You have revoked your friendship request to ".$reqUser."</font>";
 }
 require_once("../views/site.php");
+
 ?>

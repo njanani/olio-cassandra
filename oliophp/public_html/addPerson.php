@@ -27,13 +27,29 @@
 */
 session_start();
 require_once("../etc/config.php");
+require_once('../etc/phpcassa_config.php');
+
 
 $uname = $_REQUEST['username'];
 if(!is_null($uname)){
-$connection = DBConnection::getInstance();    
-$query = "SELECT username,password,firstname,lastname,email,telephone,imageurl,summary,timezone,street1,street2,city,state,zip,country FROM PERSON as p , ADDRESS as a where p.username='$uname' and p.ADDRESS_addressid = a.addressid ";
-$result = $connection->query($query);
-$row = $result->getArray();
+
+$column_family = new ColumnFamily($conn,'PERSON');
+$index_exp = CassandraUtil::create_index_expression('username', $uname);
+$index_clause = CassandraUtil::create_index_clause(array($index_exp));
+$rows = $column_family->get_indexed_slices($index_clause);
+$column_family1 = new ColumnFamily($conn,'ADDRESS');
+
+foreach($rows as $key => $row) {
+	
+	$addr_rows = $column_family1->get($row['ADDRESS_addressid']);
+	$row['street1']=$addr_rows['street1'];
+	$row['street2']=$addr_rows['street2'];
+	$row['city']=$addr_rows['city'];
+	$row['state']=$addr_rows['state'];
+	$row['zip']=$addr_rows['zip'];
+	$row['country']=$addr_rows['country'];
+}
+
 $un = $row['username'];
 $pwd= $row['password'];
 $fn = $row['firstname'];

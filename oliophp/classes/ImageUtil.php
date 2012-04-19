@@ -23,10 +23,10 @@ class ImageUtil
     static function createThumb($name,$thumbname,$new_w,$new_h){
         $system=explode('.',$name);
         $ext=$system[1];
-        if (preg_match('/jpg|jpeg/',$ext)){
+        if (preg_match('/jpg|jpeg|JPG/',$ext)){
             $src_img=imagecreatefromjpeg($name);
             $img_type="jpg";
-        } else if (preg_match('/png/',$ext)){
+        } else if (preg_match('/png/PNG',$ext)){
             $src_img=imagecreatefrompng($name);
             $img_type="png";
         }

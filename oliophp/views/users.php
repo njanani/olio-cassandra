@@ -34,8 +34,9 @@
                  document.getElementById("messages").innerHTML="<font color=green>Friendship approved.</font>";
                  document.getElementById("rq").innerHTML=results[0];
                  document.getElementById("friendCloud").innerHTML=results[1];
+					  var	ilist = "";
                  for(i=2; i < results.length - 1; i++) {
-                    var ilist = ilist + results[i];
+                    ilist = ilist + results[i];
                  }
                  document.getElementById("incoming_list").innerHTML=ilist;
              }
@@ -51,8 +52,9 @@
              if (http.readyState == 4) {
                  results = http.responseText.split("\n");
                  document.getElementById("messages").innerHTML=results[0];
+					  var ilist = "";
                  for(i=1; i < results.length - 1; i++) {
-                    var ilist = ilist + results[i];
+                    ilist = ilist + results[i];
                  }
                  document.getElementById("outgoing_list").innerHTML=ilist;
              }
@@ -69,8 +71,9 @@
                  results = http.responseText.split("\n");
                  document.getElementById("messages").innerHTML=results[0];
                  document.getElementById("rq").innerHTML=results[1];
+					  var ilist = "";
                  for(i=2; i < results.length - 1; i++) {
-                    var ilist = ilist + results[i];
+                    ilist = ilist + results[i];
                  }
                  document.getElementById("incoming_list").innerHTML=ilist;
              }

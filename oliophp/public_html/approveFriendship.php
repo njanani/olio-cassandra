@@ -23,17 +23,23 @@
  */    
 session_start();
 require_once("../etc/config.php");
-$connection = DBConnection::getWriteInstance();
+require_once('../etc/phpcassa_config.php');
 $friends = Users_Controller::getInstance();
 $person = $_REQUEST['person'];
 $friend = $_REQUEST['friend'];
-$approveSql = "update PERSON_PERSON set is_accepted=1 where person_username='$person' and friends_username='$friend'";
-$connection->beginTransaction();
-$connection->exec($approveSql);
-$_SESSION["friendshipreqs"]=$friends->numFriendshipRequests($person,$connection);
-$incomingRequests = $friends->incomingRequests($person,$connection);
-$friendCloud = $friends->getFriendCloud($person,$connection);
-$connection->commit();
+	
+	$cf = new ColumnFamily($conn,'PERSON_PERSON');
+   $index_exp_person = CassandraUtil::create_index_expression('Person_username',$person);
+	$index_exp_friends = CassandraUtil::create_index_expression('friends_username',$friend);
+	$index_clause = CassandraUtil::create_index_clause(array($index_exp_person,$index_exp_friends));
+	$rows = $cf->get_indexed_slices($index_clause);
+	foreach($rows as $key => $col) {
+		$cf->insert($col['id'],array('is_accepted' => 1));
+	}
+
+$_SESSION["friendshipreqs"]=$friends->numFriendshipRequests($person,$conn);
+$incomingRequests = $friends->incomingRequests($person,$conn);
+$friendCloud = $friends->getFriendCloud($person,$conn);
 echo "friendship requests (".$_SESSION["friendshipreqs"].")\n";
 echo $friendCloud."\n".$incomingRequests;
 ?>

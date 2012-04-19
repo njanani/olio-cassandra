@@ -25,7 +25,7 @@
 
 session_start();
 require("../etc/config.php");
-
+require('../etc/phpcassa_config.php');
 $signedinuser = $_SESSION["uname"];
 $page= $_REQUEST['page'];
 $flag = $_REQUEST['flag'];
@@ -35,9 +35,9 @@ $url = RequestUrl::getInstance();
 $href = $url->getGetRequest();
 if(!is_null($page)) {
     $href = substr($href, 0, strrpos($href,"&"));
-} // else {
-  //  error_log('$page is null.',0);
-  //}
+}  else {
+    error_log('$page is null.',0);
+}
 
 if($href=="") {
     $href = "?";
@@ -64,7 +64,7 @@ if(!is_null($page)){
     }
     $cacheType = 0;
 } else {
-    // error_log('$page is still null.',0);
+    //error_log('$page is still null.',0);
     $zipcode = $_REQUEST['zipcode'];
     $order = $_REQUEST['order'];
     $m= $_REQUEST['month'];
@@ -87,10 +87,9 @@ if(!is_null($page)){
         $_SESSION["eventdate"]= $eventdate;
         $_SESSION["zipcode"] = $zipcode;
         $_SESSION["order"] = $order;
-
-        $connection = DBConnection::getInstance();
+		  global $conn;
         $eventlist = Events_Controller::getInstance();
-        $numPages  = $eventlist->getNumPages($zipcode,$eventdate,$connection);
+        $numPages  = $eventlist->getNumPages($zipcode,$eventdate,$conn);
         $tagcloud = Tags_Controller::getInstance();
         $_SESSION["numPages"] = $numPages;
         // error_log("numPages = $numPages",0);
@@ -155,11 +154,11 @@ function fullCachePage() {
 
     if ($needsRefresh) {
         // error_log("Regenerating page................");
-        $connection = DBConnection::getInstance();
+		  global $conn;
         $eventlist = Events_Controller::getInstance();
-        $numPages  = $eventlist->getNumPages($zipcode,$eventdate,$connection);
+        $numPages  = $eventlist->getNumPages($zipcode,$eventdate,$conn);
         $indexEvents = $eventlist->getIndexEvents($zipcode,$order,$eventdate,
-                $offset,null,$signedinuser,$connection);
+                $offset,null,$signedinuser,$conn);
         $tagcloud = Tags_Controller::getInstance();
 
         ob_start();
@@ -217,15 +216,15 @@ function noCachePage() {
     global $signedinuser, $page, $flag, $url, $href, $eventdate, $zipcode;
     global $order, $numPages, $curr_page, $prev_page, $next_page, $offset;
 
-    $connection = DBConnection::getInstance();
+	 global $conn;
     $eventlist = Events_Controller::getInstance();
     $tagcloud = Tags_Controller::getInstance();
 
-    if (!is_null($page)) {
-        $numPages  = $eventlist->getNumPages($zipcode,$eventdate,$connection);
+    if (is_null($page)) {
+        $numPages  = $eventlist->getNumPages($zipcode,$eventdate,$conn);
+		  $_SESSION["numPages"] = $numPages;
     }
-    $indexEvents = $eventlist->getIndexEvents($zipcode,$order,$eventdate,
-                                        $offset,null,$signedinuser,$connection);
+    $indexEvents = $eventlist->getIndexEvents($zipcode,$order,$eventdate,$offset,null,$signedinuser,$conn);
 
     ob_start();
     require("../views/paginate.php");

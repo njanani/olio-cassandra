@@ -17,6 +17,7 @@
  * limitations under the License.
  */ 
     
+//echo $_SERVER['DOCUMENT_ROOT'];
 $olioconfig['includes'] = $_SERVER['DOCUMENT_ROOT'] . '/../includes/';
 
 $olioconfig['dbDriver'] = 'PDO';  // Which DB driver to use.
@@ -32,21 +33,21 @@ $olioconfig['dbUser'] = 'olio'; // DB user name.
 
 $olioconfig['dbPass'] = 'olio'; // DB password.
 
-$olioconfig['cacheSystem'] = 'MemCached';
+//$olioconfig['cacheSystem'] = 'MemCached';
 // Use below line for no cache - WARNING: db load will increase
-//$olioconfig['cacheSystem'] = 'NoCache';
+$olioconfig['cacheSystem'] = 'NoCache';
 
 $olioconfig['cacheExpire'] = 7200; // Expiry time for memcache on set function in seconds
 
 $olioconfig['fileSystem'] = 'LocalFS';
 
-$olioconfig['localfsRoot'] = '/filestore';
+$olioconfig['localfsRoot'] = '/usr/local/Olio_filestore';
 
-$olioconfig['memcachedHosts'] = array('MEMCACHED_HOST:11211'); // memcached host ip
+$olioconfig['memcachedHosts'] = array('127.0.0.1:11211'); // memcached host ip
 // For multiple instances, use the below line
 // $olioconfig['memcachedHosts'] = array('MEMCACHED_HOST1:port', 'MEMCACHED_HOST2:port'); // memcached host ip
 
-$olioconfig['geocoderURL'] = 'http://GEOCODER_HOST:8080/geocoder/geocode'; //Geocoder URL
+$olioconfig['geocoderURL'] = 'http://127.0.0.1:8080/geocoder/geocode'; //Geocoder URL
 
 class Olio {
     public static $config;
@@ -58,9 +59,11 @@ Olio::$config = $olioconfig;
 function __autoload($class_name)
     {
         $dir1 = $_SERVER['DOCUMENT_ROOT'] . '/../classes/';
-        $dir2 = $_SERVER['DOCUMENT_ROOT'] . '/../controllers/';
+       $dir2 = $_SERVER['DOCUMENT_ROOT'] . '/../controllers/';
+
         //class directories
         $directorys = array($dir1,$dir2);       
+
         //for each directory
         foreach($directorys as $directory)
         {
@@ -80,6 +83,6 @@ function displayException($exception) {
     echo($message . '\nPlease check server logs for detail');
     error_log($message);
 }
-
+//echo "config";
 set_exception_handler('displayException');
 ?>

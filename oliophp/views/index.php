@@ -64,7 +64,7 @@
 <br />    
 <div id="tag_cloud"><h2 class="tight_heading">Tag Cloud</h2>
     <div>
-    <?=$tagcloud->getHomePageTagCloud($connection);?>
+    <?=$tagcloud->getHomePageTagCloud($conn);?>
     </div>
 </div>
 
